@@ -298,6 +298,22 @@ export const layer = HttpApiBuilder.group(
             yield* annotateEnvironmentRequest(args.endpoint.name);
             const request = yield* HttpServerRequest.HttpServerRequest;
             const result = yield* serverAuth.getSessionState(request);
+            if (!result.authenticated) {
+              const issued = yield* serverAuth.issueProxyBrowserSession(
+                request,
+                deriveAuthClientMetadata({ request }),
+              );
+              if (Option.isSome(issued)) {
+                yield* appendSessionCookie(
+                  request,
+                  sessions.cookieName,
+                  issued.value.sessionToken,
+                  issued.value.response.expiresAt,
+                );
+                yield* appendCredentialResponseHeaders;
+                return { ...issued.value.response, auth: result.auth };
+              }
+            }
             const credential = EnvironmentAuth.selectRequestCredential(
               request,
               sessions.cookieName,

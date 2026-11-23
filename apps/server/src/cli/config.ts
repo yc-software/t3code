@@ -24,6 +24,7 @@ import * as CliError from "effect/cli/CliError";
 
 import { readBootstrapEnvelope } from "../bootstrap.ts";
 import { resolveServiceLauncherMode } from "../cloud/serviceLauncherClient.ts";
+import * as ProxyIdentity from "../auth/ProxyIdentity.ts";
 import * as ServerConfig from "../config.ts";
 import { expandHomePath, resolveBaseDir } from "../os-jank.ts";
 import { isProcessAlive, readPersistedServerRuntimeState } from "../serverRuntimeState.ts";
@@ -140,6 +141,34 @@ const EnvServerConfig = Config.all({
   host: Config.String("T3CODE_HOST").pipe(Config.option, Config.map(Option.getOrUndefined)),
   t3Home: Config.String("T3CODE_HOME").pipe(Config.option, Config.map(Option.getOrUndefined)),
   devUrl: Config.URL("VITE_DEV_SERVER_URL").pipe(Config.option, Config.map(Option.getOrUndefined)),
+  proxyJwtCookie: Config.String("T3CODE_PROXY_JWT_COOKIE").pipe(
+    Config.option,
+    Config.map(Option.getOrUndefined),
+  ),
+  proxyJwtHeader: Config.String("T3CODE_PROXY_JWT_HEADER").pipe(
+    Config.option,
+    Config.map(Option.getOrUndefined),
+  ),
+  proxyJwtKeysUrl: Config.String("T3CODE_PROXY_JWT_KEYS_URL").pipe(
+    Config.option,
+    Config.map(Option.getOrUndefined),
+  ),
+  proxyJwtIssuer: Config.String("T3CODE_PROXY_JWT_ISSUER").pipe(
+    Config.option,
+    Config.map(Option.getOrUndefined),
+  ),
+  proxyJwtAudience: Config.String("T3CODE_PROXY_JWT_AUDIENCE").pipe(
+    Config.option,
+    Config.map(Option.getOrUndefined),
+  ),
+  proxyJwtSigner: Config.String("T3CODE_PROXY_JWT_SIGNER").pipe(
+    Config.option,
+    Config.map(Option.getOrUndefined),
+  ),
+  proxyJwtAllowed: Config.String("T3CODE_PROXY_JWT_ALLOWED").pipe(
+    Config.option,
+    Config.map(Option.getOrUndefined),
+  ),
   devAllowedOrigins: Config.String("T3CODE_DEV_ALLOWED_ORIGINS").pipe(
     Config.withDefault(""),
     Config.map((value) =>
@@ -280,6 +309,18 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
   const path = yield* Path.Path;
   const fs = yield* FileSystem.FileSystem;
   const env = yield* EnvServerConfig;
+  const proxyJwt = ProxyIdentity.parseProxyJwtConfig({
+    cookieName: env.proxyJwtCookie,
+    headerName: env.proxyJwtHeader,
+    keysUrl: env.proxyJwtKeysUrl,
+    issuer: env.proxyJwtIssuer,
+    audience: env.proxyJwtAudience,
+    signer: env.proxyJwtSigner,
+    allowed: env.proxyJwtAllowed,
+  });
+  if (proxyJwt._tag === "Invalid") {
+    return yield* new CliError.UserError({ cause: proxyJwt.message });
+  }
   const normalizedFlags = {
     mode: flags.mode ?? Option.none(),
     port: flags.port ?? Option.none(),
@@ -522,6 +563,7 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
     devUrl,
     ...(devAuthToken === undefined ? {} : { devAuthToken }),
     devAllowedOrigins: env.devAllowedOrigins,
+    ...(proxyJwt._tag === "Enabled" ? { proxyJwt: proxyJwt.config } : {}),
     noBrowser,
     startupPresentation,
     desktopBootstrapToken,

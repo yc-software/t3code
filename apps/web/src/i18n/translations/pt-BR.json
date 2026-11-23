@@ -12862,5 +12862,14 @@
   "f6a91589456cca50": "Aprovado",
   "c92657bb7f2293ff": "Precisa de aprovação",
   "f1e5c1be1ac92361": "Aprovar",
-  "fcb5f3c4d4753326": "Esta conexão não pode aprovar comandos. Use um cliente que possa usar o terminal."
+  "fcb5f3c4d4753326": "Esta conexão não pode aprovar comandos. Use um cliente que possa usar o terminal.",
+  "4357fd98704699df": "O endereço do ambiente é inválido.",
+  "a40e0fcc294eed26": "O login em {host} foi cancelado.",
+  "4393133f172ea4a8": "Entrar em um ambiente requer o aplicativo para desktop.",
+  "0663160ec02bd73e": "Não foi possível abrir a página de login: {cause}",
+  "88f6523b01490d4f": "Entrar em {host}",
+  "25d84a20b0793eb8": "A sessão de login deste ambiente terminou.",
+  "f932d120942f1c12": "Aguardando login…",
+  "cf2370d60586f15f": "Proxy OIDC",
+  "77d884868af81f94": "Entre pelo proxy de identidade na frente do ambiente."
 }

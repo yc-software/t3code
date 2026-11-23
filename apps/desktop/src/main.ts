@@ -77,6 +77,7 @@ import * as DesktopBrowserHost from "./preview/DesktopBrowserHost.ts";
 import * as LoopbackTunnel from "./preview/LoopbackTunnel.ts";
 import * as PreviewManager from "./preview/Manager.ts";
 import * as PreviewPasskeys from "./preview/Passkeys.ts";
+import * as DesktopEnvironmentSignIn from "./environmentSignIn/DesktopEnvironmentSignIn.ts";
 import * as DesktopWindow from "./window/DesktopWindow.ts";
 import * as DesktopWslBackend from "./wsl/DesktopWslBackend.ts";
 import * as DesktopWslEnvironment from "./wsl/DesktopWslEnvironment.ts";
@@ -179,7 +180,12 @@ const layerDesktopPreview = PreviewManager.layer.pipe(
   Layer.provideMerge(layerDesktopFoundation),
 );
 
+const layerDesktopEnvironmentSignIn = DesktopEnvironmentSignIn.layer.pipe(
+  Layer.provideMerge(layerDesktopFoundation),
+);
+
 const layerDesktopWindow = DesktopWindow.layer.pipe(
+  Layer.provideMerge(layerDesktopEnvironmentSignIn),
   Layer.provideMerge(layerDesktopServerExposure),
   Layer.provideMerge(layerDesktopPreview),
 );
@@ -218,6 +224,7 @@ const layerDesktopApplication = Layer.mergeAll(
   DesktopLinuxUrlHandler.layer,
   DesktopCliCommand.layer,
 ).pipe(
+  Layer.provideMerge(layerDesktopEnvironmentSignIn),
   Layer.provideMerge(layerDesktopSnapShot),
   Layer.provideMerge(
     DesktopUpdates.layer.pipe(

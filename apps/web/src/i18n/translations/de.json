@@ -12862,5 +12862,14 @@
   "f6a91589456cca50": "Genehmigt",
   "c92657bb7f2293ff": "Genehmigung nötig",
   "f1e5c1be1ac92361": "Genehmigen",
-  "fcb5f3c4d4753326": "Über diese Verbindung lassen sich keine Befehle genehmigen. Verwende einen Client, der das Terminal verwenden darf."
+  "fcb5f3c4d4753326": "Über diese Verbindung lassen sich keine Befehle genehmigen. Verwende einen Client, der das Terminal verwenden darf.",
+  "4357fd98704699df": "Die Adresse der Umgebung ist ungültig.",
+  "a40e0fcc294eed26": "Die Anmeldung bei {host} wurde abgebrochen.",
+  "4393133f172ea4a8": "Für die Anmeldung bei einer Umgebung wird die Desktop-App benötigt.",
+  "0663160ec02bd73e": "Die Anmeldeseite konnte nicht geöffnet werden: {cause}",
+  "88f6523b01490d4f": "Bei {host} anmelden",
+  "25d84a20b0793eb8": "Die Anmeldesitzung für diese Umgebung ist abgelaufen.",
+  "f932d120942f1c12": "Warte auf Anmeldung…",
+  "cf2370d60586f15f": "OIDC-Proxy",
+  "77d884868af81f94": "Über den Identitäts-Proxy vor der Umgebung anmelden."
 }

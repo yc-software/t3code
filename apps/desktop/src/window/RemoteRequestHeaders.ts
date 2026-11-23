@@ -11,9 +11,15 @@ export interface MainWindowRequestHeaderPolicy {
   readonly clerkFrontendApiHostname?: string | undefined;
   readonly devServerOrigin?: string | undefined;
   readonly isDevelopment: boolean;
+  readonly addHeaders?: (request: {
+    readonly id: number;
+    readonly url: string;
+    readonly requestHeaders: Record<string, string>;
+  }) => Promise<Record<string, string> | undefined>;
 }
 
 export interface MainWindowRequestHeaderDetails {
+  readonly id?: number | undefined;
   readonly url: string;
   readonly webContentsId?: number | undefined;
   readonly frame?: { readonly parent: unknown } | null | undefined;
@@ -120,7 +126,25 @@ export function installMainWindowRemoteRequestHeaderPolicy(
     { urls: REMOTE_REQUEST_URL_PATTERNS },
     (details, callback) => {
       const requestHeaders = stripDesktopOriginHeaders(policy, details);
-      callback(requestHeaders === undefined ? {} : { requestHeaders });
+      if (
+        policy.addHeaders === undefined ||
+        details.webContentsId !== policy.mainWebContentsId ||
+        isSubframe(details)
+      ) {
+        callback(requestHeaders === undefined ? {} : { requestHeaders });
+        return;
+      }
+      policy
+        .addHeaders({
+          id: details.id,
+          url: details.url,
+          requestHeaders: requestHeaders ?? details.requestHeaders,
+        })
+        .catch(() => undefined)
+        .then((added) => {
+          const next = added ?? requestHeaders;
+          callback(next === undefined ? {} : { requestHeaders: next });
+        });
     },
   );
   return () => {

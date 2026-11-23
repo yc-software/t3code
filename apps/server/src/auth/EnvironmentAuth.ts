@@ -44,6 +44,7 @@ import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as ServerConfig from "../config.ts";
 import * as EnvironmentAuthPolicy from "./EnvironmentAuthPolicy.ts";
 import * as PairingGrantStore from "./PairingGrantStore.ts";
+import * as ProxyIdentity from "./ProxyIdentity.ts";
 import * as ServerSecretStore from "./ServerSecretStore.ts";
 import * as SessionStore from "./SessionStore.ts";
 import { REUSABLE_DEV_SESSION_EXPIRES_AT, resolveReusableDevAuth } from "./ReusableDevAuth.ts";
@@ -619,6 +620,16 @@ export class EnvironmentAuth extends Context.Service<
     readonly revokeOtherClientSessions: (
       currentSessionId: AuthSessionId,
     ) => Effect.Effect<number, ServerAuthInternalError>;
+    readonly issueProxyBrowserSession: (
+      request: HttpServerRequest.HttpServerRequest,
+      requestMetadata: AuthClientMetadata,
+    ) => Effect.Effect<
+      Option.Option<{
+        readonly response: AuthBrowserSessionResult;
+        readonly sessionToken: string;
+      }>,
+      ServerAuthInternalError
+    >;
     readonly authenticateHttpRequest: (
       request: HttpServerRequest.HttpServerRequest,
     ) => Effect.Effect<AuthenticatedSession, ServerAuthCredentialError | ServerAuthInternalError>;
@@ -875,7 +886,36 @@ export const make = Effect.gen(function* () {
     ...config.devAllowedOrigins,
   ]);
 
+  const proxyIdentity = Option.getOrUndefined(
+    yield* Effect.serviceOption(ProxyIdentity.ProxyIdentity),
+  );
+
+  const requireProxyIdentity = Effect.fnUntraced(function* (
+    request: HttpServerRequest.HttpServerRequest,
+    session: AuthenticatedSession,
+  ) {
+    if (!session.subject.startsWith(ProxyIdentity.PROXY_SESSION_SUBJECT_PREFIX)) return session;
+    const identity =
+      proxyIdentity === undefined ? Option.none<string>() : yield* proxyIdentity.identify(request);
+    if (
+      Option.isNone(identity) ||
+      ProxyIdentity.proxySessionSubject(identity.value) !== session.subject
+    ) {
+      return yield* new ServerAuthInvalidCredentialError({
+        diagnostic: "This session needs the proxy sign-in it was issued for.",
+      });
+    }
+    return session;
+  });
+
   const authenticateRequest = (
+    request: HttpServerRequest.HttpServerRequest,
+  ): Effect.Effect<AuthenticatedSession, ServerAuthCredentialError | ServerAuthInternalError> =>
+    authenticateRequestCredential(request).pipe(
+      Effect.flatMap((session) => requireProxyIdentity(request, session)),
+    );
+
+  const authenticateRequestCredential = (
     request: HttpServerRequest.HttpServerRequest,
   ): Effect.Effect<AuthenticatedSession, ServerAuthCredentialError | ServerAuthInternalError> => {
     const dpopToken = parseDpopToken(request);
@@ -969,6 +1009,32 @@ export const make = Effect.gen(function* () {
       ),
       connectTrustLock.withPermits(1),
     );
+
+  const issueProxyBrowserSession: EnvironmentAuth["Service"]["issueProxyBrowserSession"] =
+    Effect.fn("EnvironmentAuth.issueProxyBrowserSession")(function* (request, requestMetadata) {
+      if (proxyIdentity === undefined || !isBrowserOriginAllowed(request, trustedBrowserOrigins)) {
+        return Option.none();
+      }
+      const identity = yield* proxyIdentity.identify(request);
+      if (Option.isNone(identity)) return Option.none();
+      const session = yield* sessions
+        .issue({
+          method: "browser-session-cookie",
+          subject: ProxyIdentity.proxySessionSubject(identity.value),
+          scopes: AuthStandardClientScopes,
+          client: { ...requestMetadata, label: identity.value },
+        })
+        .pipe(Effect.mapError((cause) => new ServerAuthAuthenticatedSessionIssueError({ cause })));
+      return Option.some({
+        response: {
+          authenticated: true,
+          ...authScopeResponse(session.scopes),
+          sessionMethod: session.method,
+          expiresAt: DateTime.toUtc(session.expiresAt),
+        } satisfies AuthBrowserSessionResult,
+        sessionToken: session.token,
+      });
+    });
 
   const createBrowserSession: EnvironmentAuth["Service"]["createBrowserSession"] = Effect.fn(
     "EnvironmentAuth.createBrowserSession",
@@ -1612,7 +1678,7 @@ export const make = Effect.gen(function* () {
               Effect.provideService(Digest.Digest, digest),
             );
           }
-          return {
+          return yield* requireProxyIdentity(request, {
             sessionId: session.sessionId,
             subject: session.subject,
             method: session.method,
@@ -1621,7 +1687,7 @@ export const make = Effect.gen(function* () {
               ? { proofKeyThumbprint: session.proofKeyThumbprint }
               : {}),
             ...(session.expiresAt ? { expiresAt: session.expiresAt } : {}),
-          };
+          });
         }
       }
 
@@ -1763,6 +1829,7 @@ export const make = Effect.gen(function* () {
     }),
     getSessionState,
     createBrowserSession,
+    issueProxyBrowserSession,
     exchangeBootstrapCredentialForAccessToken,
     renewAccessToken,
     createPairingLink,

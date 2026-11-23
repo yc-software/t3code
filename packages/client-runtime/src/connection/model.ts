@@ -150,6 +150,9 @@ export type PreparedHttpAuthorization =
       readonly token: string;
     }
   | {
+      readonly _tag: "BrowserSession";
+    }
+  | {
       readonly _tag: "Dpop";
       readonly accessToken: string;
       readonly expiresAtEpochMs: number;

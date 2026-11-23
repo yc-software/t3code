@@ -12871,5 +12871,14 @@
   "f6a91589456cca50": "Approved",
   "c92657bb7f2293ff": "Needs approval",
   "f1e5c1be1ac92361": "Approve",
-  "fcb5f3c4d4753326": "This connection cannot approve commands. Use a client that can use the terminal."
+  "fcb5f3c4d4753326": "This connection cannot approve commands. Use a client that can use the terminal.",
+  "4357fd98704699df": "The environment address is invalid.",
+  "a40e0fcc294eed26": "Sign-in to {host} was cancelled.",
+  "4393133f172ea4a8": "Signing in to an environment needs the desktop app.",
+  "0663160ec02bd73e": "Could not open the sign-in page: {cause}",
+  "88f6523b01490d4f": "Sign in to {host}",
+  "25d84a20b0793eb8": "The sign-in session for this environment ended.",
+  "f932d120942f1c12": "Waiting for sign-in…",
+  "cf2370d60586f15f": "OIDC Proxy",
+  "77d884868af81f94": "Sign in through the identity proxy in front of the environment."
 }

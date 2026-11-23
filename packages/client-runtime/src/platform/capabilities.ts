@@ -8,7 +8,7 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import type * as Option from "effect/Option";
 
-import type { ConnectionAttemptError } from "../connection/model.ts";
+import { type ConnectionAttemptError, ConnectionBlockedError } from "../connection/model.ts";
 
 export interface PreparedSshEnvironment {
   readonly bootstrap: DesktopSshEnvironmentBootstrap;
@@ -49,6 +49,22 @@ export class AnalyticsDevice extends Context.Reference<{
   readonly id: Effect.Effect<Option.Option<string>>;
 }>("@t3tools/client-runtime/platform/capabilities/AnalyticsDevice", {
   defaultValue: () => ({ id: Effect.succeedNone }),
+}) {}
+
+export class EnvironmentBrowserSignIn extends Context.Reference<{
+  readonly signIn: (
+    httpBaseUrl: string,
+  ) => Effect.Effect<"ready" | "cancelled", ConnectionAttemptError>;
+}>("@t3tools/client-runtime/platform/capabilities/EnvironmentBrowserSignIn", {
+  defaultValue: () => ({
+    signIn: () =>
+      Effect.fail(
+        new ConnectionBlockedError({
+          reason: "unsupported",
+          detail: "Signing in to an environment is not available in this client.",
+        }),
+      ),
+  }),
 }) {}
 
 export class ClientPresentation extends Context.Service<

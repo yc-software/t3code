@@ -242,6 +242,44 @@ For a plain HTTP LAN endpoint, use the direct pairing URL in a browser that can
 open it, or pair from the desktop app. On mobile, an IP address entered without a
 scheme uses HTTP, so include `https://` when your server uses HTTPS.
 
+## Behind an identity proxy
+
+Cloudflare Access, Google Cloud IAP, and an AWS Application Load Balancer can
+sign people in before a request reaches T3 Code. Each sends T3 Code a signed JWT
+that names the person. Set these variables on the server so it trusts that JWT:
+
+| Variable                    | Value                                                                                     |
+| --------------------------- | ----------------------------------------------------------------------------------------- |
+| `T3CODE_PROXY_JWT_HEADER`   | The request header with the JWT.                                                          |
+| `T3CODE_PROXY_JWT_COOKIE`   | The cookie with the JWT. Set this, the header, or both; the header wins.                  |
+| `T3CODE_PROXY_JWT_KEYS_URL` | An https JWKS URL, or an https URL with `{kid}` that returns one PEM key for each key ID. |
+| `T3CODE_PROXY_JWT_ISSUER`   | The `iss` claim the JWT must have.                                                        |
+| `T3CODE_PROXY_JWT_AUDIENCE` | The `aud` claim the JWT must have. Optional.                                              |
+| `T3CODE_PROXY_JWT_SIGNER`   | Allowed `signer` headers, comma-separated. Optional; use it for an AWS load balancer.     |
+| `T3CODE_PROXY_JWT_ALLOWED`  | A comma-separated list of the emails or subjects (`sub`) that may use this server.        |
+
+A request with a valid JWT for an allowed identity gets a session cookie with the
+standard client permissions. The session works only while each request still has
+a valid JWT for the same identity, so signing out at the proxy ends it. Pairing
+links and other credentials keep working. The server stops at startup if the
+settings are incomplete.
+
+| Proxy                | Header                     | Keys URL                                                  | Issuer                                             | Audience                                                   |
+| -------------------- | -------------------------- | --------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
+| Cloudflare Access    | `Cf-Access-Jwt-Assertion`  | `https://TEAM.cloudflareaccess.com/cdn-cgi/access/certs`  | `https://TEAM.cloudflareaccess.com`                | The application's AUD tag                                  |
+| Google Cloud IAP     | `x-goog-iap-jwt-assertion` | `https://www.gstatic.com/iap/verify/public_key-jwk`       | `https://cloud.google.com/iap`                     | `/projects/NUMBER/global/backendServices/ID`               |
+| AWS ALB with Cognito | `x-amzn-oidc-data`         | `https://public-keys.auth.elb.REGION.amazonaws.com/{kid}` | `https://cognito-idp.REGION.amazonaws.com/POOL_ID` | Leave unset; set `T3CODE_PROXY_JWT_SIGNER` to the ALB ARNs |
+
+An AWS load balancer passes only the claims Cognito returns, which may not
+include `email`. If they don't, list each person's `sub` in
+`T3CODE_PROXY_JWT_ALLOWED`.
+
+To add the server in the desktop app, open **Settings → Environments → Add
+environment**, choose **OIDC Proxy**, and enter its address. The app opens the
+address in a window, where the proxy asks you to sign in. The app then keeps the
+proxy's cookies and the T3 Code session for that address, and asks you to sign in
+again when the proxy's session ends.
+
 ## Desktop-managed SSH
 
 In the desktop app, open **Settings → Environments → Add environment**, choose

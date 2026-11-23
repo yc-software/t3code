@@ -1,7 +1,7 @@
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { m } from "~/i18n/messages";
 import { pipe } from "effect/Function";
-import { ChevronsLeftRightEllipsisIcon, PlusIcon, TerminalIcon } from "lucide-react";
+import { ChevronsLeftRightEllipsisIcon, LogInIcon, PlusIcon, TerminalIcon } from "lucide-react";
 import { useAtomValue } from "@effect/atom-react";
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { T, useGT, useMessages, Var } from "gt-react";
@@ -47,6 +47,7 @@ import { Button } from "../ui/button";
 import { AnimatedHeight } from "../AnimatedHeight";
 import { environmentCatalog } from "~/connection/catalog";
 import {
+  connectBrowserSession as connectBrowserSessionAtom,
   connectPairing as connectPairingAtom,
   connectSshEnvironment as connectSshEnvironmentAtom,
 } from "~/connection/onboarding";
@@ -101,6 +102,10 @@ export function AddEnvironmentDialog({
   const desktopBridge = window.desktopBridge;
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const connectPairing = useAtomCommand(connectPairingAtom, { reportFailure: false });
+  const connectBrowserSession = useAtomCommand(connectBrowserSessionAtom, {
+    reportFailure: false,
+  });
+  const canSignIn = desktopBridge?.signInToEnvironment !== undefined;
   const connectSshEnvironment = useAtomCommand(connectSshEnvironmentAtom, {
     reportFailure: false,
   });
@@ -125,7 +130,7 @@ export function AddEnvironmentDialog({
     }
     return keys;
   })();
-  const [savedBackendMode, setSavedBackendMode] = useState<"remote" | "ssh">("remote");
+  const [savedBackendMode, setSavedBackendMode] = useState<"remote" | "ssh" | "sign-in">("remote");
   const [savedBackendHost, setSavedBackendHost] = useState(prefill?.host ?? initialHost);
   const [savedBackendPairingCode, setSavedBackendPairingCode] = useState("");
   const [savedBackendSshHost, setSavedBackendSshHost] = useState("");
@@ -227,6 +232,31 @@ export function AddEnvironmentDialog({
 
     setIsAddingSavedBackend(true);
     onErrorChange(null);
+    if (savedBackendMode === "sign-in") {
+      const signedIn = await connectBrowserSession({
+        host: savedBackendHost,
+        ...(routeTarget ? { expectedEnvironmentId: routeTarget.environmentId } : {}),
+      });
+      setIsAddingSavedBackend(false);
+      if (signedIn._tag === "Failure") {
+        if (!isAtomCommandInterrupted(signedIn)) {
+          const error = squashAtomCommandFailure(signedIn);
+          onErrorChange(
+            error instanceof Error
+              ? (thrownErrorMessage(error, m) ?? error.message)
+              : gt("Failed to add backend."),
+          );
+        }
+        return;
+      }
+      handleOpenChange(false);
+      toastManager.add({
+        type: "success",
+        title: gt("Backend added"),
+        description: gt("The environment is saved and will reconnect on app startup."),
+      });
+      return;
+    }
     let remotePairingInput: ReturnType<typeof parseRemotePairingFields>;
     try {
       remotePairingInput = parseRemotePairingFields({
@@ -378,7 +408,7 @@ export function AddEnvironmentDialog({
     setSavedBackendHost(value);
   };
   const renderConnectionModeCard = (input: {
-    readonly mode: "remote" | "ssh";
+    readonly mode: "remote" | "ssh" | "sign-in";
     readonly title: string;
     readonly description: string;
     readonly icon?: ReactNode;
@@ -525,6 +555,38 @@ export function AddEnvironmentDialog({
           : routeTarget
             ? gt("Add route")
             : gt("Add environment")}
+      </Button>
+    </div>
+  );
+  const renderSignInFields = () => (
+    <div className="space-y-4">
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-medium text-foreground">
+          <T>Address</T>
+        </span>
+        <Input
+          value={savedBackendHost}
+          onChange={(event) => setSavedBackendHost(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && savedBackendHost.trim().length > 0) {
+              event.preventDefault();
+              void handleAddSavedBackend();
+            }
+          }}
+          placeholder="https://backend.example.com"
+          disabled={isAddingSavedBackend}
+          spellCheck={false}
+        />
+      </label>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      <Button
+        variant="outline"
+        className="w-full"
+        disabled={isAddingSavedBackend || savedBackendHost.trim().length === 0}
+        onClick={() => void handleAddSavedBackend()}
+      >
+        <LogInIcon className="size-3.5" />
+        {isAddingSavedBackend ? gt("Waiting for sign-in…") : gt("Sign in")}
       </Button>
     </div>
   );
@@ -710,7 +772,7 @@ export function AddEnvironmentDialog({
         </DialogHeader>
         <DialogPanel>
           <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={cn("grid gap-3", canSignIn ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
               {renderConnectionModeCard({
                 mode: "remote",
                 title: gt("Remote link"),
@@ -725,9 +787,23 @@ export function AddEnvironmentDialog({
                     icon: <TerminalIcon aria-hidden className="size-4" />,
                   })
                 : null}
+              {canSignIn
+                ? renderConnectionModeCard({
+                    mode: "sign-in",
+                    title: gt("OIDC Proxy"),
+                    description: gt(
+                      "Sign in through the identity proxy in front of the environment.",
+                    ),
+                    icon: <LogInIcon aria-hidden className="size-4" />,
+                  })
+                : null}
             </div>
             <AnimatedHeight>
-              {savedBackendMode === "ssh" ? renderSshFields() : renderRemoteModeBody()}
+              {savedBackendMode === "ssh"
+                ? renderSshFields()
+                : savedBackendMode === "sign-in"
+                  ? renderSignInFields()
+                  : renderRemoteModeBody()}
             </AnimatedHeight>
           </div>
         </DialogPanel>

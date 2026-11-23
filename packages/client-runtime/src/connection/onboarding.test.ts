@@ -34,6 +34,7 @@ import {
 import * as Onboarding from "./onboarding.ts";
 import {
   prepareBearerConnectionUpdate,
+  prepareBrowserSessionRegistration,
   preparePairingRegistration,
   prepareSshRegistration,
 } from "./onboarding.ts";
@@ -282,6 +283,52 @@ describe("connection onboarding", () => {
       expect(tokenParams.get("client_label")).toBe("T3 Code Test");
       expect(tokenParams.get("client_device_type")).toBe("desktop");
       expect(tokenParams.get("client_os")).toBe("Test OS");
+    }),
+  );
+
+  it.effect("saves a signed-in environment with no token, after the sign-in window succeeds", () =>
+    Effect.gen(function* () {
+      const calls: Array<{ readonly url: string; readonly init: RequestInit }> = [];
+      const signIns: Array<string> = [];
+      const registration = yield* prepareBrowserSessionRegistration({
+        host: "remote.example.test",
+      }).pipe(
+        Effect.provide(layerPairingOnboarding(undefined, calls)),
+        Effect.provideService(ClientCapabilities.EnvironmentBrowserSignIn, {
+          signIn: (httpBaseUrl) =>
+            Effect.sync(() => signIns.push(httpBaseUrl)).pipe(Effect.as("ready" as const)),
+        }),
+      );
+
+      expect(signIns).toEqual(["https://remote.example.test/"]);
+      expect(registration).toMatchObject({
+        _tag: "BearerConnectionRegistration",
+        profile: {
+          environmentId: "environment-paired",
+          httpBaseUrl: "https://remote.example.test/",
+          wsBaseUrl: "wss://remote.example.test/",
+          authorization: "browser-session",
+        },
+        credential: { _tag: "BrowserSessionConnectionCredential" },
+      });
+      expect(calls.map((call) => call.url)).toEqual([
+        "https://remote.example.test/.well-known/t3/environment",
+      ]);
+    }),
+  );
+
+  it.effect("saves nothing when the sign-in window is closed", () =>
+    Effect.gen(function* () {
+      const calls: Array<{ readonly url: string; readonly init: RequestInit }> = [];
+      const error = yield* prepareBrowserSessionRegistration({ host: "remote.example.test" }).pipe(
+        Effect.provide(layerPairingOnboarding(undefined, calls)),
+        Effect.provideService(ClientCapabilities.EnvironmentBrowserSignIn, {
+          signIn: () => Effect.succeed("cancelled" as const),
+        }),
+        Effect.flip,
+      );
+      expect(error).toMatchObject({ _tag: "ConnectionBlockedError", reason: "authentication" });
+      expect(calls).toEqual([]);
     }),
   );
 

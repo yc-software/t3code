@@ -65,7 +65,7 @@ const buildEnvironmentAuthHeaders = Effect.fn("environmentHttpAuth.buildEnvironm
     url: string,
     signer: Option.Option<ManagedRelay.ManagedRelayDpopSigner["Service"]>,
   ): Effect.fn.Return<EnvironmentHttpAuthHeaders, RemoteEnvironmentAuthFetchError> {
-    if (authorization === null) {
+    if (authorization === null || authorization._tag === "BrowserSession") {
       return {};
     }
     if (authorization._tag === "Bearer") {

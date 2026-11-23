@@ -61,6 +61,7 @@ import * as DesktopConnectionCatalogStore from "./DesktopConnectionCatalogStore.
 import * as DesktopIpc from "../ipc/DesktopIpc.ts";
 import * as DesktopLocalEnvironmentAuth from "../backend/DesktopLocalEnvironmentAuth.ts";
 import * as DesktopManagedPolicy from "./DesktopManagedPolicy.ts";
+import * as DesktopEnvironmentSignIn from "../environmentSignIn/DesktopEnvironmentSignIn.ts";
 import * as DesktopPrimaryPaste from "./DesktopPrimaryPaste.ts";
 import * as DesktopSshEnvironment from "../ssh/DesktopSshEnvironment.ts";
 import * as DesktopSshPasswordPrompts from "../ssh/DesktopSshPasswordPrompts.ts";
@@ -224,6 +225,10 @@ const runStubbedDesktop = (stub: StubbedDesktop) =>
           }),
           Layer.mock(DesktopManagedPolicy.DesktopManagedPolicy, {}),
           Layer.succeed(DesktopPrimaryPaste.DesktopPrimaryPaste, { enabled: true }),
+          Layer.mock(DesktopEnvironmentSignIn.DesktopEnvironmentSignIn, {
+            install: Effect.void,
+            addCookies: async () => undefined,
+          }),
           Layer.mock(DesktopSshEnvironment.DesktopSshEnvironment, {}),
           Layer.mock(DesktopSshPasswordPrompts.DesktopSshPasswordPrompts, {}),
           Layer.mock(DesktopTelemetryPublisher.DesktopTelemetryPublisher, {}),

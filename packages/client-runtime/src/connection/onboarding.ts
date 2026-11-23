@@ -26,6 +26,7 @@ import * as ManagedRelay from "../relay/managedRelay.ts";
 import {
   BearerConnectionCredential,
   BearerConnectionProfile,
+  BrowserSessionConnectionCredential,
   BearerConnectionRegistration,
   type ConnectionCatalogEntry,
   type ConnectionCredential,
@@ -53,6 +54,11 @@ export interface PairingConnectionInput {
   readonly expectedEnvironmentId?: EnvironmentId;
 }
 
+export interface BrowserSessionConnectionInput {
+  readonly host: string;
+  readonly expectedEnvironmentId?: EnvironmentId;
+}
+
 export interface SshConnectionInput {
   readonly target: DesktopSshEnvironmentTarget;
   readonly label?: string;
@@ -70,6 +76,12 @@ export class ConnectionOnboarding extends Context.Service<
   {
     readonly registerPairing: (
       input: PairingConnectionInput,
+    ) => Effect.Effect<
+      EnvironmentId,
+      ConnectionAttemptError | Persistence.ConnectionPersistenceError
+    >;
+    readonly registerBrowserSession: (
+      input: BrowserSessionConnectionInput,
     ) => Effect.Effect<
       EnvironmentId,
       ConnectionAttemptError | Persistence.ConnectionPersistenceError
@@ -240,6 +252,78 @@ const reachesEnvironment = Effect.fn("clientRuntime.connection.onboarding.reache
   Effect.orElseSucceed(() => false),
 );
 
+export const prepareBrowserSessionRegistration = Effect.fn(
+  "clientRuntime.connection.onboarding.prepareBrowserSessionRegistration",
+)(function* (input: BrowserSessionConnectionInput) {
+  const target = yield* Effect.try({
+    try: () => {
+      const host = input.host.trim();
+      const httpBaseUrl = normalizeHttpBaseUrl(
+        /^[a-z][a-z\d+.-]*:\/\//i.test(host) ? host : `https://${host}`,
+      );
+      return { httpBaseUrl, wsBaseUrl: deriveWsBaseUrl(httpBaseUrl) };
+    },
+    catch: (cause) =>
+      new ConnectionBlockedError({
+        reason: "configuration",
+        ...(cause instanceof Error
+          ? detailFromError(cause)
+          : translatableDetail(msg("The environment address is invalid."))),
+      }),
+  });
+  const browserSignIn = yield* ClientCapabilities.EnvironmentBrowserSignIn;
+  if ((yield* browserSignIn.signIn(target.httpBaseUrl)) === "cancelled") {
+    return yield* new ConnectionBlockedError({
+      reason: "authentication",
+      ...translatableDetail(
+        msg("Sign-in to {host} was cancelled.", { host: new URL(target.httpBaseUrl).host }),
+      ),
+    });
+  }
+  const descriptor = yield* fetchRemoteEnvironmentDescriptor({
+    httpBaseUrl: target.httpBaseUrl,
+  }).pipe(Effect.mapError(mapRemoteEnvironmentError));
+  if (
+    input.expectedEnvironmentId !== undefined &&
+    descriptor.environmentId !== input.expectedEnvironmentId
+  ) {
+    return yield* differentMachineError(descriptor.label);
+  }
+  const connectionId = bearerConnectionId(descriptor.environmentId, target.httpBaseUrl);
+  return new BearerConnectionRegistration({
+    target: new BearerConnectionTarget({
+      environmentId: descriptor.environmentId,
+      label: descriptor.label,
+      connectionId,
+    }),
+    profile: new BearerConnectionProfile({
+      connectionId,
+      environmentId: descriptor.environmentId,
+      label: descriptor.label,
+      httpBaseUrl: target.httpBaseUrl,
+      wsBaseUrl: target.wsBaseUrl,
+      authorization: "browser-session",
+    }),
+    credential: new BrowserSessionConnectionCredential({}),
+  });
+});
+
+const registerBrowserSessionConnection = Effect.fn(
+  "clientRuntime.connection.onboarding.registerBrowserSessionConnection",
+)(function* (input: BrowserSessionConnectionInput) {
+  const registration = yield* prepareBrowserSessionRegistration(input);
+  const registry = yield* EnvironmentRegistry.EnvironmentRegistry;
+  const knownAddressOnly = input.expectedEnvironmentId === undefined;
+  if (!(yield* registry.register(registration, { knownAddressOnly }))) {
+    return registration.target.environmentId;
+  }
+  yield* registry.setCompatibility(registration.target.environmentId, null);
+  yield* registry
+    .setEnabled(registration.target.environmentId, true)
+    .pipe(Effect.catchTags({ EnvironmentNotRegisteredError: () => Effect.void }));
+  return registration.target.environmentId;
+});
+
 const isBearerProfile = Schema.is(BearerConnectionProfile);
 
 const updateBearerConnection = Effect.fn(
@@ -378,6 +462,7 @@ export const make = Effect.gen(function* () {
   const presentation = yield* ClientCapabilities.ClientPresentation;
   const httpClient = yield* HttpClient.HttpClient;
   const ssh = yield* ClientCapabilities.SshEnvironmentGateway;
+  const browserSignIn = yield* ClientCapabilities.EnvironmentBrowserSignIn;
   const credentials = yield* ConnectionCredentialStore.ConnectionCredentialStore;
 
   // Provisioning retains the delegated onboarding operation spans.
@@ -388,6 +473,14 @@ export const make = Effect.gen(function* () {
       },
       Effect.provideService(EnvironmentRegistry.EnvironmentRegistry, registry),
       Effect.provideService(ClientCapabilities.ClientPresentation, presentation),
+      Effect.provideService(HttpClient.HttpClient, httpClient),
+    ),
+    registerBrowserSession: Effect.fnUntraced(
+      function* (input) {
+        return yield* registerBrowserSessionConnection(input);
+      },
+      Effect.provideService(EnvironmentRegistry.EnvironmentRegistry, registry),
+      Effect.provideService(ClientCapabilities.EnvironmentBrowserSignIn, browserSignIn),
       Effect.provideService(HttpClient.HttpClient, httpClient),
     ),
     registerSsh: Effect.fnUntraced(

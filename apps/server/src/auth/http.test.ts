@@ -28,6 +28,8 @@ import { makeDpopKey } from "./dpop.testkit.ts";
 import * as ServerSecretStore from "./ServerSecretStore.ts";
 import * as AuthHttp from "./http.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
+import * as ProxyIdentity from "./ProxyIdentity.ts";
+import { makeProxySigner, makeTestProxyIdentity } from "./ProxyIdentity.testkit.ts";
 
 const DEV_TOKEN = "reusable-dev-auth-token-that-is-long-enough";
 class AuthTestApi extends HttpApi.make("environment").add(EnvironmentHttpApi.groups.auth) {}
@@ -45,26 +47,34 @@ const layerConfig = Layer.effect(
   }),
 ).pipe(Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-auth-http-test-" })));
 
-const layerEnvironmentAuth = EnvironmentAuth.layer.pipe(
-  Layer.provide(ManagedPolicy.layerTest()),
-  Layer.provide(SqlitePersistence.layerMemory),
-  Layer.provide(ServerSecretStore.layer),
-  Layer.provide(ServerEnvironment.layerIdentity),
-  Layer.provide(layerConfig),
-);
-const layerRoutes = HttpApiBuilder.layer(AuthTestApi).pipe(
-  Layer.provide(AuthHttp.layer),
-  Layer.provide(AuthHttp.layerAuthenticatedAuth),
-  Layer.provideMerge(layerEnvironmentAuth),
-  Layer.provide(layerConfig),
-  Layer.provideMerge(
-    HttpPlatform.layer.pipe(
-      Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
-      Layer.provideMerge(Etag.layerWeak),
+const makeLayerEnvironmentAuth = (proxyIdentity?: ProxyIdentity.ProxyIdentity["Service"]) =>
+  EnvironmentAuth.layer.pipe(
+    Layer.provide(
+      proxyIdentity === undefined
+        ? Layer.empty
+        : Layer.succeed(ProxyIdentity.ProxyIdentity, proxyIdentity),
     ),
-  ),
-  Layer.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
-);
+    Layer.provide(ManagedPolicy.layerTest()),
+    Layer.provide(SqlitePersistence.layerMemory),
+    Layer.provide(ServerSecretStore.layer),
+    Layer.provide(ServerEnvironment.layerIdentity),
+    Layer.provide(layerConfig),
+  );
+const makeLayerRoutes = (proxyIdentity?: ProxyIdentity.ProxyIdentity["Service"]) =>
+  HttpApiBuilder.layer(AuthTestApi).pipe(
+    Layer.provide(AuthHttp.layer),
+    Layer.provide(AuthHttp.layerAuthenticatedAuth),
+    Layer.provideMerge(makeLayerEnvironmentAuth(proxyIdentity)),
+    Layer.provide(layerConfig),
+    Layer.provideMerge(
+      HttpPlatform.layer.pipe(
+        Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
+        Layer.provideMerge(Etag.layerWeak),
+      ),
+    ),
+    Layer.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
+  );
+const layerRoutes = makeLayerRoutes();
 
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 const postJson = (path: string, body: unknown, headers?: Readonly<Record<string, string>>) =>
@@ -169,6 +179,74 @@ it.effect("sets the selected browser session cookies through the HTTP route", ()
         }),
       ([environmentA, environmentB]) =>
         Effect.promise(() => Promise.all([environmentA.dispose(), environmentB.dispose()])),
+    );
+  }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+);
+
+it.live("issues a session for an allowed proxy identity and ties it to that identity", () =>
+  Effect.gen(function* () {
+    const random = yield* SecureRandom.SecureRandom;
+    const signer = yield* Effect.promise(() => makeProxySigner("RS256"));
+    const [owner, other] = yield* Effect.promise(() =>
+      Promise.all([
+        signer.sign({ email: "owner@example.com" }),
+        signer.sign({ email: "other@example.com" }),
+      ]),
+    );
+    const requestContext = Context.make(SecureRandom.SecureRandom, random).pipe(
+      Context.add(
+        ServerSecretStore.ServerSecretStore,
+        ServerSecretStore.ServerSecretStore.of({
+          get: () => Effect.succeedNone,
+          set: () => Effect.void,
+          create: () => Effect.void,
+          getOrCreateRandom: () => Effect.die("Not used by these routes."),
+          remove: () => Effect.void,
+        }),
+      ),
+    );
+    const routes = makeLayerRoutes(
+      makeTestProxyIdentity(signer, { allowed: ["owner@example.com", "other@example.com"] }),
+    );
+    return yield* Effect.acquireUseRelease(
+      Effect.sync(() => HttpRouter.toWebHandler(routes, { disableLogger: true })),
+      (environment) =>
+        Effect.promise(async () => {
+          const session = (headers: Record<string, string>) =>
+            environment.handler(
+              new Request("http://127.0.0.1/api/auth/session", { headers }),
+              requestContext,
+            );
+          const issued = await session({ "x-proxy-jwt": owner });
+          expect(await issued.json()).toMatchObject({ authenticated: true });
+          const cookie =
+            issued.headers
+              .getSetCookie()
+              .find((value) => value.startsWith("t3_session_"))
+              ?.split(";", 1)[0] ?? "";
+          expect(cookie).not.toBe("");
+
+          expect(await (await session({ cookie, "x-proxy-jwt": owner })).json()).toMatchObject({
+            authenticated: true,
+          });
+          const withoutJwt = await session({ cookie });
+          expect(await withoutJwt.json()).toMatchObject({ authenticated: false });
+          expect(withoutJwt.headers.getSetCookie()).toEqual([]);
+
+          const pairing = (headers: Record<string, string>) =>
+            environment.handler(postJson("/api/auth/pairing-token", {}, headers), requestContext);
+          expect((await pairing({ cookie, "x-proxy-jwt": owner })).status).toBe(200);
+          expect((await pairing({ cookie, "x-proxy-jwt": other })).status).toBe(401);
+          expect((await pairing({ cookie })).status).toBe(401);
+
+          const crossSite = await session({
+            "x-proxy-jwt": owner,
+            origin: "https://evil.example",
+          });
+          expect(await crossSite.json()).toMatchObject({ authenticated: false });
+          expect(crossSite.headers.getSetCookie()).toEqual([]);
+        }),
+      (environment) => Effect.promise(() => environment.dispose()),
     );
   }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
 );

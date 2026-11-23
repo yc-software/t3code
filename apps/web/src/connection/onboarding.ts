@@ -23,6 +23,19 @@ export const connectPairing = createRuntimeCommand(connectionAtomRuntime, {
     ),
 });
 
+export const connectBrowserSession = createRuntimeCommand(connectionAtomRuntime, {
+  label: "web:connection:connect-browser-session",
+  scheduler: onboardingScheduler,
+  concurrency: {
+    mode: "singleFlight",
+    key: (input: ConnectionOnboarding.BrowserSessionConnectionInput) => JSON.stringify(input),
+  },
+  execute: (input: ConnectionOnboarding.BrowserSessionConnectionInput) =>
+    ConnectionOnboarding.ConnectionOnboarding.pipe(
+      Effect.flatMap((onboarding) => onboarding.registerBrowserSession(input)),
+    ),
+});
+
 export const connectSshEnvironment = createRuntimeCommand(connectionAtomRuntime, {
   label: "web:connection:connect-ssh",
   scheduler: onboardingScheduler,

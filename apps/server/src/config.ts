@@ -63,6 +63,16 @@ export interface DeriveServerPathsOptions {
   readonly baseDirIsExplicit?: boolean;
 }
 
+export interface ProxyJwtConfig {
+  readonly cookieName?: string;
+  readonly headerName?: string;
+  readonly keysUrl: string;
+  readonly issuer: string;
+  readonly audience?: string;
+  readonly signers?: ReadonlyArray<string>;
+  readonly allowed: ReadonlyArray<string>;
+}
+
 export class ServerConfig extends Context.Service<
   ServerConfig,
   ServerDerivedPaths & {
@@ -96,6 +106,7 @@ export class ServerConfig extends Context.Service<
     readonly devUrl: URL | undefined;
     readonly devAuthToken?: Redacted.Redacted<string> | undefined;
     readonly devAllowedOrigins: ReadonlyArray<string>;
+    readonly proxyJwt?: ProxyJwtConfig | undefined;
     readonly noBrowser: boolean;
     readonly startupPresentation: StartupPresentation;
     readonly desktopBootstrapToken: string | undefined;

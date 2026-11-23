@@ -457,7 +457,30 @@ const layerCapabilities = Layer.effectContext(
       }),
     });
 
+    const browserSignIn = {
+      signIn: (httpBaseUrl: string) => {
+        const signIn = window.desktopBridge?.signInToEnvironment;
+        if (signIn === undefined) {
+          return Effect.fail(
+            new ConnectionBlockedError({
+              reason: "unsupported",
+              detail: m(msg("Signing in to an environment needs the desktop app.")),
+            }),
+          );
+        }
+        return Effect.tryPromise({
+          try: () => signIn(httpBaseUrl),
+          catch: (cause) =>
+            new ConnectionTransientError({
+              reason: "remote-unavailable",
+              detail: m(msg("Could not open the sign-in page: {cause}", { cause: String(cause) })),
+            }),
+        });
+      },
+    };
+
     return Context.make(ClientCapabilities.CloudSession, cloudSession).pipe(
+      Context.add(ClientCapabilities.EnvironmentBrowserSignIn, browserSignIn),
       Context.add(ClientCapabilities.AnalyticsDevice, analyticsDevice),
       Context.add(ClientCapabilities.PrimaryEnvironmentAuth, primaryAuth),
       Context.add(ClientCapabilities.RelayDeviceIdentity, identity),

@@ -45,6 +45,7 @@ import { m } from "../i18n/messages.ts";
 import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
 import { makeQuitShortcutHandler } from "./QuitHold.ts";
 import { copyContextMenuImage } from "./ContextMenuImage.ts";
+import * as DesktopEnvironmentSignIn from "../environmentSignIn/DesktopEnvironmentSignIn.ts";
 import { installMainWindowRemoteRequestHeaderPolicy } from "./RemoteRequestHeaders.ts";
 
 const TITLEBAR_HEIGHT = 40;
@@ -390,6 +391,9 @@ export const make = Effect.gen(function* () {
   const electronShell = yield* ElectronShell.ElectronShell;
   const electronTheme = yield* ElectronTheme.ElectronTheme;
   const electronWindow = yield* ElectronWindow.ElectronWindow;
+  const environmentSignIn = Option.getOrUndefined(
+    yield* Effect.serviceOption(DesktopEnvironmentSignIn.DesktopEnvironmentSignIn),
+  );
   const previewManager = yield* PreviewManager.PreviewManager;
   const previewPasskeys = yield* PreviewPasskeys.PreviewPasskeys;
   const primaryPaste = yield* DesktopPrimaryPaste.DesktopPrimaryPaste;
@@ -1057,6 +1061,7 @@ export const make = Effect.gen(function* () {
           Option.map(environment.devServerUrl, (url) => url.origin),
         ),
         isDevelopment: environment.isDevelopment,
+        ...(environmentSignIn === undefined ? {} : { addHeaders: environmentSignIn.addCookies }),
       },
     );
     loadApplication();

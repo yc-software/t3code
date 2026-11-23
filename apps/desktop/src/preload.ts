@@ -205,6 +205,19 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     }),
   fetchSshSessionState: (httpBaseUrl, bearerToken) =>
     ipcRenderer.invoke(IpcChannels.FETCH_SSH_SESSION_STATE_CHANNEL, { httpBaseUrl, bearerToken }),
+  signInToEnvironment: (httpBaseUrl) =>
+    ipcRenderer.invoke(IpcChannels.SIGN_IN_TO_ENVIRONMENT_CHANNEL, httpBaseUrl),
+  onEnvironmentSignInRequired: (listener) => {
+    const wrappedListener = (_event: Electron.IpcRendererEvent, origin: unknown) => {
+      if (typeof origin !== "string") return;
+      listener(origin);
+    };
+
+    ipcRenderer.on(IpcChannels.ENVIRONMENT_SIGN_IN_REQUIRED_CHANNEL, wrappedListener);
+    return () => {
+      ipcRenderer.removeListener(IpcChannels.ENVIRONMENT_SIGN_IN_REQUIRED_CHANNEL, wrappedListener);
+    };
+  },
   onSshPasswordPrompt: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, request: unknown) => {
       if (typeof request !== "object" || request === null) return;

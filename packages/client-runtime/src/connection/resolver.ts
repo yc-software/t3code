@@ -77,12 +77,12 @@ const isBearerProfile = Schema.is(BearerConnectionProfile);
 const isSshProfile = Schema.is(SshConnectionProfile);
 const isBearerCredential = Schema.is(BearerConnectionCredential);
 
-function primarySocketUrl(
-  target: PrimaryConnectionTarget,
+function cookieSocketUrl(
+  wsBaseUrl: string,
   clientMetadata: AuthClientPresentationMetadata | undefined,
   owners: ClientOwnerParams,
 ): string {
-  const url = new URL(target.wsBaseUrl);
+  const url = new URL(wsBaseUrl);
   if (url.pathname === "" || url.pathname === "/") {
     url.pathname = "/ws";
   }
@@ -104,7 +104,11 @@ const makePrimaryBroker = Effect.fn("clientRuntime.connection.broker.makePrimary
         environmentId: target.environmentId,
         label: target.label,
         httpBaseUrl: target.httpBaseUrl,
-        socketUrl: primarySocketUrl(target, presentation.metadata, yield* readClientOwnerParams),
+        socketUrl: cookieSocketUrl(
+          target.wsBaseUrl,
+          presentation.metadata,
+          yield* readClientOwnerParams,
+        ),
         httpAuthorization: null,
         target,
       } satisfies PreparedConnection;
@@ -127,6 +131,7 @@ const makePrimaryBroker = Effect.fn("clientRuntime.connection.broker.makePrimary
 const makeBearerBroker = Effect.fn("clientRuntime.connection.broker.makeBearer")(function* () {
   const credentials = yield* ConnectionCredentialStore.ConnectionCredentialStore;
   const remote = yield* RemoteEnvironmentAuthorization.RemoteEnvironmentAuthorization;
+  const presentation = yield* ClientCapabilities.ClientPresentation;
 
   return Effect.fn("clientRuntime.connection.broker.bearer")(function* (
     entry: ConnectionCatalogEntry & { readonly target: BearerConnectionTarget },
@@ -151,6 +156,20 @@ const makeBearerBroker = Effect.fn("clientRuntime.connection.broker.makeBearer")
         actual: profile.environmentId,
       });
     }
+    if (profile.authorization === "browser-session") {
+      return {
+        environmentId: target.environmentId,
+        label: target.label,
+        httpBaseUrl: profile.httpBaseUrl,
+        socketUrl: cookieSocketUrl(
+          profile.wsBaseUrl,
+          presentation.metadata,
+          yield* readClientOwnerParams,
+        ),
+        httpAuthorization: { _tag: "BrowserSession" },
+        target,
+      } satisfies PreparedConnection;
+    }
     if (profile.authorization === "t3-connect") {
       const authorized = yield* remote.authorizeDpop({
         expectedEnvironmentId: target.environmentId,
@@ -166,6 +185,9 @@ const makeBearerBroker = Effect.fn("clientRuntime.connection.broker.makeBearer")
         }),
       ),
     );
+    if (credential._tag === "BrowserSessionConnectionCredential") {
+      return yield* credentialMissingError(target.connectionId);
+    }
     const authorized =
       credential._tag === "DpopConnectionCredential"
         ? yield* remote.authorizeDirectDpop({

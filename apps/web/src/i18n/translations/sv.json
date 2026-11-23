@@ -12869,5 +12869,14 @@
   "f6a91589456cca50": "Godkänt",
   "c92657bb7f2293ff": "Behöver godkännande",
   "f1e5c1be1ac92361": "Godkänn",
-  "fcb5f3c4d4753326": "Den här anslutningen kan inte godkänna kommandon. Använd en klient som får använda terminalen."
+  "fcb5f3c4d4753326": "Den här anslutningen kan inte godkänna kommandon. Använd en klient som får använda terminalen.",
+  "4357fd98704699df": "Miljöns adress är ogiltig.",
+  "a40e0fcc294eed26": "Inloggningen på {host} avbröts.",
+  "4393133f172ea4a8": "Inloggning i en miljö kräver skrivbordsappen.",
+  "0663160ec02bd73e": "Det gick inte att öppna inloggningssidan: {cause}",
+  "88f6523b01490d4f": "Logga in på {host}",
+  "25d84a20b0793eb8": "Inloggningssessionen för den här miljön har upphört.",
+  "f932d120942f1c12": "Väntar på inloggning…",
+  "cf2370d60586f15f": "OIDC-Proxy",
+  "77d884868af81f94": "Logga in via identitetsproxyn framför miljön."
 }

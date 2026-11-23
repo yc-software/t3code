@@ -12862,5 +12862,14 @@
   "f6a91589456cca50": "Approuvée",
   "c92657bb7f2293ff": "Approbation requise",
   "f1e5c1be1ac92361": "Approuver",
-  "fcb5f3c4d4753326": "Cette connexion ne peut pas approuver de commandes. Utilisez un client qui peut utiliser le terminal."
+  "fcb5f3c4d4753326": "Cette connexion ne peut pas approuver de commandes. Utilisez un client qui peut utiliser le terminal.",
+  "4357fd98704699df": "L’adresse de l’environnement n’est pas valide.",
+  "a40e0fcc294eed26": "La connexion à {host} a été annulée.",
+  "4393133f172ea4a8": "La connexion à un environnement nécessite l’application de bureau.",
+  "0663160ec02bd73e": "Impossible d’ouvrir la page de connexion : {cause}",
+  "88f6523b01490d4f": "Se connecter à {host}",
+  "25d84a20b0793eb8": "La session de connexion de cet environnement a pris fin.",
+  "f932d120942f1c12": "En attente de la connexion…",
+  "cf2370d60586f15f": "Proxy OIDC",
+  "77d884868af81f94": "Connectez-vous via le proxy d’identité placé devant l’environnement."
 }

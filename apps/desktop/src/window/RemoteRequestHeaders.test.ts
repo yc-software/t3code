@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 
 import {
+  installMainWindowRemoteRequestHeaderPolicy,
   stripDesktopOriginHeaders,
   type MainWindowRequestHeaderPolicy,
 } from "./RemoteRequestHeaders.ts";
@@ -182,5 +183,55 @@ describe("RemoteRequestHeaders", () => {
         },
       }),
     );
+  });
+
+  it("adds headers only to the main window's own requests, after stripping Origin", async () => {
+    type Listener = (
+      details: {
+        readonly id: number;
+        readonly url: string;
+        readonly webContentsId?: number;
+        readonly frame?: { readonly parent: unknown } | null;
+        readonly requestHeaders: Record<string, string>;
+      },
+      callback: (response: { readonly requestHeaders?: Record<string, string> }) => void,
+    ) => void;
+    let listener: Listener | undefined;
+    const seen: Array<Record<string, string>> = [];
+    const session = {
+      webRequest: {
+        onBeforeSendHeaders: (_filter: unknown, next: Listener | null) => {
+          listener = next ?? undefined;
+        },
+      },
+    } as unknown as Parameters<typeof installMainWindowRemoteRequestHeaderPolicy>[0];
+    installMainWindowRemoteRequestHeaderPolicy(session, {
+      ...packagedPolicy,
+      addHeaders: async (request) => {
+        seen.push(request.requestHeaders);
+        return { ...request.requestHeaders, Cookie: "proxy=1" };
+      },
+    });
+    const send = (details: Omit<Parameters<Listener>[0], "id" | "url" | "requestHeaders">) =>
+      new Promise<Record<string, string> | undefined>((resolve) =>
+        listener?.(
+          {
+            id: 1,
+            url: "https://remote.example.com/api",
+            requestHeaders: { Origin: "t3code://app" },
+            ...details,
+          },
+          (response) => resolve(response.requestHeaders),
+        ),
+      );
+
+    assert.deepStrictEqual(await send({ webContentsId: 42, frame: { parent: null } }), {
+      Cookie: "proxy=1",
+    });
+    assert.deepStrictEqual(await send({ webContentsId: 42, frame: null }), { Cookie: "proxy=1" });
+    assert.deepStrictEqual(seen, [{}, {}]);
+    assert.strictEqual(await send({ webContentsId: 42, frame: { parent: {} } }), undefined);
+    assert.strictEqual(await send({ webContentsId: 7, frame: { parent: null } }), undefined);
+    assert.strictEqual(seen.length, 2);
   });
 });

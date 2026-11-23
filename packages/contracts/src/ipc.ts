@@ -1147,6 +1147,8 @@ export interface DesktopBridge {
   setConnectionCatalog: (catalog: string) => Promise<boolean>;
   discoverSshHosts: () => Promise<readonly DesktopDiscoveredSshHost[]>;
   resolveSshHost: (alias: string) => Promise<DesktopSshEnvironmentTarget>;
+  signInToEnvironment?: (httpBaseUrl: string) => Promise<"ready" | "cancelled">;
+  onEnvironmentSignInRequired?: (listener: (origin: string) => void) => () => void;
   requestSnapShotPermissions: (includeAccessibility: boolean) => Promise<void>;
   getSnapShotState: () => Promise<DesktopSnapShotState>;
   setupSnapShot: (action: DesktopSnapShotSetupAction) => Promise<void>;

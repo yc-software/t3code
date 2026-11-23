@@ -81,6 +81,7 @@ import {
 import * as PreviewIpc from "./methods/preview.ts";
 import * as AppActivationIpc from "./methods/appActivation.ts";
 import * as WebLinksIpc from "./methods/webLinks.ts";
+import { signInToEnvironment } from "./methods/environmentSignIn.ts";
 import {
   completeLegacyLocalStorage,
   takeLegacyLocalStorage,
@@ -143,6 +144,7 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   yield* ipc.handle(bootstrapSshBearerSession);
   yield* ipc.handle(fetchSshSessionState);
   yield* ipc.handle(resolveSshPasswordPrompt);
+  yield* ipc.handle(signInToEnvironment);
 
   yield* ipc.handle(getServerExposureState);
   yield* ipc.handle(setServerExposureMode);
