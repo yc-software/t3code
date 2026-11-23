@@ -5626,5 +5626,13 @@
   "0b1e4aecbd38e0cf": "Wenn die App über {product} eine Verbindung zu einem Computer herstellt, sendet sie dem T3 Code-Team, wie lange jeder Schritt gedauert hat, den Fehlertyp, eine ID für diese App-Sitzung und die App-Version. Traces enthalten nie deine Threads, Prompts oder deinen Code.",
   "e0856d6a402ad821": "Die Richtlinie von {organization} erlaubt keine Worktree-Layout-Befehle von Projekten.",
   "4357fd98704699df": "Die Adresse der Umgebung ist ungültig.",
-  "a40e0fcc294eed26": "Die Anmeldung bei {host} wurde abgebrochen."
+  "a40e0fcc294eed26": "Die Anmeldung bei {host} wurde abgebrochen.",
+  "bfca7b6df2ce46a9": "Melde dich erneut bei {host} an.",
+  "b831531bbe27ae73": "{host} ist nicht erreichbar.",
+  "aaf6ded61b89b52d": "Die Anmeldung über einen Identitäts-Proxy erfordert die iOS- oder Desktop-App.",
+  "0663160ec02bd73e": "Die Anmeldeseite konnte nicht geöffnet werden: {cause}",
+  "6730fa8ae68fad99": "Backend konnte nicht hinzugefügt werden.",
+  "3078a2a3b948c409": "Mit OIDC-Proxy anmelden",
+  "4da298339fde7575": "Öffnet die obige Adresse, damit der vorgeschaltete Proxy dich anmelden kann. Kein Code nötig.",
+  "0b99239b0a69e6fd": "Oder über einen Identitäts-Proxy anmelden"
 }

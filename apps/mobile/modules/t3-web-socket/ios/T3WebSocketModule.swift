@@ -40,9 +40,7 @@ public final class T3WebSocketModule: Module {
       }
       let session = self.session ?? self.makeSession()
       self.session = session
-      let task = protocols.isEmpty
-        ? session.webSocketTask(with: url)
-        : session.webSocketTask(with: url, protocols: protocols)
+      let task = session.webSocketTask(with: Self.request(url: url, protocols: protocols))
       // The app splits frames at 48 KiB, but older servers and the outdated-host probe send whole
       // messages, so stay well above URLSession's 1 MiB default.
       task.maximumMessageSize = 128 * 1024 * 1024
@@ -81,6 +79,24 @@ public final class T3WebSocketModule: Module {
     OnDestroy {
       self.session?.invalidateAndCancel()
     }
+  }
+
+  /// Sends the cookies an identity-proxy sign-in saved, which the proxy needs to pass the upgrade.
+  /// They are set by hand because URLSession matches cookies against http(s) URLs only.
+  private static func request(url: URL, protocols: [String]) -> URLRequest {
+    var request = URLRequest(url: url)
+    request.httpShouldHandleCookies = false
+    if !protocols.isEmpty {
+      request.setValue(protocols.joined(separator: ", "), forHTTPHeaderField: "Sec-WebSocket-Protocol")
+    }
+    var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+    components?.scheme = url.scheme?.lowercased() == "wss" ? "https" : "http"
+    if let httpURL = components?.url, let cookies = HTTPCookieStorage.shared.cookies(for: httpURL), !cookies.isEmpty {
+      for (name, value) in HTTPCookie.requestHeaderFields(with: cookies) {
+        request.setValue(value, forHTTPHeaderField: name)
+      }
+    }
+    return request
   }
 
   private func makeSession() -> URLSession {

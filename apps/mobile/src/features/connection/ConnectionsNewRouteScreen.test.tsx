@@ -16,6 +16,7 @@ vi.mock("react-native", () => ({
   View: Children,
   Pressable: Children,
   Linking: { openSettings: vi.fn() },
+  Platform: { OS: "ios" },
   StyleSheet: { absoluteFill: {} },
 }));
 vi.mock("react-native-svg", () => ({
@@ -77,6 +78,8 @@ vi.mock("../settings/settings-navigation", () => ({
 vi.mock("../layout/workspace/workspace-selection-store", () => ({
   workspaceHasColumns: () => false,
 }));
+vi.mock("../../connection/onboarding", () => ({ connectBrowserSession: {} }));
+vi.mock("../../state/use-atom-command", () => ({ useAtomCommand: () => vi.fn() }));
 vi.mock("../cloud/publicConfig", () => ({ hasCloudPublicConfig: () => false }));
 vi.mock("./CloudEnvironmentRows", () => ({ CloudEnvironmentRows: () => null }));
 vi.mock("./environmentSections", () => ({

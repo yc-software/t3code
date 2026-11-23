@@ -280,6 +280,12 @@ address in a window, where the proxy asks you to sign in. The app then keeps the
 proxy's cookies and the T3 Code session for that address, and asks you to sign in
 again when the proxy's session ends.
 
+On iOS, open **Add environment**, enter the address, and tap **Sign in with OIDC
+proxy**. The proxy's sign-in page opens in a sheet that closes on its own once you
+are signed in. When the proxy's session ends, the environment shows that you need
+to sign in again; tap **Reconnect** to reopen the sheet. Android doesn't support
+this yet.
+
 ## Desktop-managed SSH
 
 In the desktop app, open **Settings → Environments → Add environment**, choose

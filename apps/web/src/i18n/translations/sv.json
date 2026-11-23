@@ -12878,5 +12878,7 @@
   "25d84a20b0793eb8": "Inloggningssessionen för den här miljön har upphört.",
   "f932d120942f1c12": "Väntar på inloggning…",
   "cf2370d60586f15f": "OIDC-Proxy",
-  "77d884868af81f94": "Logga in via identitetsproxyn framför miljön."
+  "77d884868af81f94": "Logga in via identitetsproxyn framför miljön.",
+  "bfca7b6df2ce46a9": "Logga in på {host} igen.",
+  "b831531bbe27ae73": "Det gick inte att nå {host}."
 }

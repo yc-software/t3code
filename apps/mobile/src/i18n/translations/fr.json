@@ -5620,5 +5620,13 @@
   "0b1e4aecbd38e0cf": "Quand l’app se connecte à un ordinateur via {product}, elle envoie à l’équipe T3 Code la durée de chaque étape, le type d’erreur, un identifiant de cette session de l’app et la version de l’app. Les traces n’incluent jamais vos fils, prompts ni votre code.",
   "e0856d6a402ad821": "La politique de {organization} n’autorise pas les commandes de disposition des worktrees des projets.",
   "4357fd98704699df": "L’adresse de l’environnement n’est pas valide.",
-  "a40e0fcc294eed26": "La connexion à {host} a été annulée."
+  "a40e0fcc294eed26": "La connexion à {host} a été annulée.",
+  "bfca7b6df2ce46a9": "Reconnectez-vous à {host}.",
+  "b831531bbe27ae73": "Impossible de joindre {host}.",
+  "aaf6ded61b89b52d": "La connexion via un proxy d’identité nécessite l’app iOS ou l’app de bureau.",
+  "0663160ec02bd73e": "Impossible d’ouvrir la page de connexion : {cause}",
+  "6730fa8ae68fad99": "Échec de l’ajout du backend.",
+  "3078a2a3b948c409": "Se connecter avec un proxy OIDC",
+  "4da298339fde7575": "Ouvre l’adresse ci-dessus pour que le proxy placé devant vous connecte. Aucun code nécessaire.",
+  "0b99239b0a69e6fd": "Ou connectez-vous via un proxy d’identité"
 }

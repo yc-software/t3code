@@ -52,3 +52,16 @@ export const reachesEnvironment = createRuntimeCommand(connectionAtomRuntime, {
       Effect.flatMap((onboarding) => onboarding.reaches(input)),
     ),
 });
+
+export const connectBrowserSession = createRuntimeCommand(connectionAtomRuntime, {
+  label: "mobile:connection:connect-browser-session",
+  scheduler: onboardingScheduler,
+  concurrency: {
+    mode: "singleFlight",
+    key: (input: ConnectionOnboarding.BrowserSessionConnectionInput) => JSON.stringify(input),
+  },
+  execute: (input: ConnectionOnboarding.BrowserSessionConnectionInput) =>
+    ConnectionOnboarding.ConnectionOnboarding.pipe(
+      Effect.flatMap((onboarding) => onboarding.registerBrowserSession(input)),
+    ),
+});

@@ -5628,5 +5628,13 @@
   "0b1e4aecbd38e0cf": "When the app connects to a computer through {product}, it sends the T3 Code team how long each step took, any error type, an ID for this app session, and the app version. Traces never include your threads, prompts, or code.",
   "e0856d6a402ad821": "{organization}'s policy does not allow project worktree layout commands.",
   "4357fd98704699df": "The environment address is invalid.",
-  "a40e0fcc294eed26": "Sign-in to {host} was cancelled."
+  "a40e0fcc294eed26": "Sign-in to {host} was cancelled.",
+  "bfca7b6df2ce46a9": "Sign in to {host} again.",
+  "b831531bbe27ae73": "Could not reach {host}.",
+  "aaf6ded61b89b52d": "Signing in through an identity proxy needs the iOS or desktop app.",
+  "0663160ec02bd73e": "Could not open the sign-in page: {cause}",
+  "6730fa8ae68fad99": "Failed to add backend.",
+  "3078a2a3b948c409": "Sign in with OIDC proxy",
+  "4da298339fde7575": "Opens the address above so the proxy in front of it can sign you in. No code needed.",
+  "0b99239b0a69e6fd": "Or sign in through an identity proxy"
 }

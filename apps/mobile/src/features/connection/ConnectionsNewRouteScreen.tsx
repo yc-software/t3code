@@ -15,7 +15,7 @@ import {
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { useState } from "react";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { cn } from "../../lib/cn";
@@ -35,6 +35,12 @@ import { splitEnvironmentSections } from "./environmentSections";
 import { leaveSettingsPage } from "../settings/settings-navigation";
 import { workspaceHasColumns } from "../layout/workspace/workspace-selection-store";
 import { m } from "../../i18n/messages";
+import { connectBrowserSession } from "../../connection/onboarding";
+import { useAtomCommand } from "../../state/use-atom-command";
+import {
+  isAtomCommandInterrupted,
+  squashAtomCommandFailure,
+} from "@t3tools/client-runtime/state/runtime";
 
 type ConnectionsNewRouteParams = {
   readonly mode?: string;
@@ -99,6 +105,7 @@ function PairingForm({
   const [scanComplete, setScanComplete] = useState(false);
 
   const headerIconColor = useUniwindTheme()["--color-icon"];
+  const signInThroughProxy = useAtomCommand(connectBrowserSession, { reportFailure: false });
 
   const connectDisabled = connecting || hostInput.trim().length === 0;
 
@@ -183,15 +190,41 @@ function PairingForm({
         ? Haptics.NotificationFeedbackType.Success
         : Haptics.NotificationFeedbackType.Error,
     );
-    if (outcome.ok) {
-      // Replacing with Home would nest it inside any sheet below; return to the opener.
-      if (!navigation.canGoBack()) {
-        navigation.dispatch(StackActions.replace("Home"));
-      } else {
-        // Added from the Settings list, the new environment shows on Environments.
-        leaveSettingsPage(navigation, workspaceHasColumns(), "SettingsEnvironments");
-      }
+    if (outcome.ok) leaveAfterAdding();
+  };
+
+  const leaveAfterAdding = () => {
+    // Replacing with Home would nest it inside any sheet below; return to the opener.
+    if (!navigation.canGoBack()) {
+      navigation.dispatch(StackActions.replace("Home"));
+    } else {
+      // Added from the Settings list, the new environment shows on Environments.
+      leaveSettingsPage(navigation, workspaceHasColumns(), "SettingsEnvironments");
     }
+  };
+
+  const handleProxySignIn = async () => {
+    setOwnAttempt(true);
+    setSubmitError(null);
+    setIsSubmitting(true);
+    const result = await signInThroughProxy({
+      host: hostInput,
+      ...(routeFor === undefined ? {} : { expectedEnvironmentId: routeFor }),
+    });
+    setIsSubmitting(false);
+    if (result._tag === "Success") {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      leaveAfterAdding();
+      return;
+    }
+    if (isAtomCommandInterrupted(result)) return;
+    const error = squashAtomCommandFailure(result);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    setSubmitError(
+      error instanceof Error
+        ? (errorDisplayMessage(error, m) ?? error.message)
+        : gt("Failed to add backend."),
+    );
   };
 
   return (
@@ -285,6 +318,29 @@ function PairingForm({
                     ))}
             </Text>
           </View>
+
+          {Platform.OS === "ios" ? (
+            <View collapsable={false} className="gap-2">
+              <Text className="px-4 text-sm font-t3-medium text-foreground-muted">
+                <T>Or sign in through an identity proxy</T>
+              </Text>
+              <View
+                collapsable={false}
+                className="overflow-hidden rounded-[26px] border-continuous"
+              >
+                <ListRow
+                  label={gt("Sign in with OIDC proxy")}
+                  description={gt(
+                    "Opens the address above so the proxy in front of it can sign you in. No code needed.",
+                  )}
+                  disabled={connectDisabled}
+                  onPress={() => {
+                    void handleProxySignIn();
+                  }}
+                />
+              </View>
+            </View>
+          ) : null}
 
           {hasCloudPublicConfig() ? <T3ConnectSection /> : null}
         </View>

@@ -17,7 +17,7 @@ import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
 import Constants from "expo-constants";
 import * as Network from "expo-network";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { authClientMetadata } from "../lib/authClientMetadata";
 import * as Runtime from "../lib/runtime";
@@ -146,6 +146,34 @@ const layerWakeups = Wakeups.layer({
   ),
 });
 
+interface NativeEnvironmentSignIn {
+  signInToEnvironment(origin: string): Promise<"ready" | "cancelled">;
+}
+
+const environmentBrowserSignIn = ClientCapabilities.EnvironmentBrowserSignIn.of({
+  signIn: Effect.fn("ClientCapabilities.EnvironmentBrowserSignIn.signIn")(function* (
+    httpBaseUrl: string,
+  ) {
+    if (Platform.OS !== "ios") {
+      return yield* new ConnectionBlockedError({
+        reason: "unsupported",
+        detail: m(msg("Signing in through an identity proxy needs the iOS or desktop app.")),
+      });
+    }
+    return yield* Effect.tryPromise({
+      try: async () =>
+        (await import("expo"))
+          .requireNativeModule<NativeEnvironmentSignIn>("T3NativeControls")
+          .signInToEnvironment(new URL(httpBaseUrl).origin),
+      catch: (cause) =>
+        new ConnectionTransientError({
+          reason: "remote-unavailable",
+          detail: m(msg("Could not open the sign-in page: {cause}", { cause: String(cause) })),
+        }),
+    });
+  }),
+});
+
 const layerCapabilities = Layer.effectContext(
   Effect.gen(function* () {
     const storage = yield* MobileStorage.MobileStorage;
@@ -184,6 +212,7 @@ const layerCapabilities = Layer.effectContext(
         }),
       }),
     ).pipe(
+      Context.add(ClientCapabilities.EnvironmentBrowserSignIn, environmentBrowserSignIn),
       Context.add(
         ClientCapabilities.PrimaryEnvironmentAuth,
         ClientCapabilities.PrimaryEnvironmentAuth.of({

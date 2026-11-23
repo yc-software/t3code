@@ -5626,5 +5626,13 @@
   "0b1e4aecbd38e0cf": "När appen ansluter till en dator via {product} skickar den hur lång tid varje steg tog, feltypen, ett ID för den här appsessionen och appversionen till T3 Code-teamet. Spårningar innehåller aldrig dina trådar, prompter eller din kod.",
   "e0856d6a402ad821": "Policyn för {organization} tillåter inte projekts layoutkommandon för worktrees.",
   "4357fd98704699df": "Miljöns adress är ogiltig.",
-  "a40e0fcc294eed26": "Inloggningen på {host} avbröts."
+  "a40e0fcc294eed26": "Inloggningen på {host} avbröts.",
+  "bfca7b6df2ce46a9": "Logga in på {host} igen.",
+  "b831531bbe27ae73": "Det gick inte att nå {host}.",
+  "aaf6ded61b89b52d": "Inloggning via en identitetsproxy kräver iOS- eller skrivbordsappen.",
+  "0663160ec02bd73e": "Det gick inte att öppna inloggningssidan: {cause}",
+  "6730fa8ae68fad99": "Det gick inte att lägga till backend.",
+  "3078a2a3b948c409": "Logga in med OIDC-proxy",
+  "4da298339fde7575": "Öppnar adressen ovan så att proxyn framför den kan logga in dig. Ingen kod behövs.",
+  "0b99239b0a69e6fd": "Eller logga in via en identitetsproxy"
 }

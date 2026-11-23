@@ -5620,5 +5620,13 @@
   "0b1e4aecbd38e0cf": "Quando o app se conecta a um computador pelo {product}, ele envia à equipe do T3 Code quanto tempo cada etapa levou, o tipo de erro, um ID desta sessão do app e a versão do app. Os traces nunca incluem suas conversas, prompts ou código.",
   "e0856d6a402ad821": "A política de {organization} não permite comandos de layout de worktree de projetos.",
   "4357fd98704699df": "O endereço do ambiente é inválido.",
-  "a40e0fcc294eed26": "O login em {host} foi cancelado."
+  "a40e0fcc294eed26": "O login em {host} foi cancelado.",
+  "bfca7b6df2ce46a9": "Entre em {host} novamente.",
+  "b831531bbe27ae73": "Não foi possível acessar {host}.",
+  "aaf6ded61b89b52d": "Entrar por um proxy de identidade requer o app para iOS ou para desktop.",
+  "0663160ec02bd73e": "Não foi possível abrir a página de login: {cause}",
+  "6730fa8ae68fad99": "Falha ao adicionar o backend.",
+  "3078a2a3b948c409": "Entrar com proxy OIDC",
+  "4da298339fde7575": "Abre o endereço acima para que o proxy na frente dele faça seu login. Não precisa de código.",
+  "0b99239b0a69e6fd": "Ou entre por um proxy de identidade"
 }

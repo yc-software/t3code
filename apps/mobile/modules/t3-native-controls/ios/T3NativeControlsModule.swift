@@ -11,6 +11,7 @@ public final class T3NativeControlsModule: Module {
   private var videoPresentation: T3NativeVideoPresentation?
   private var filePresentation: T3NativeFilePresentation?
   private var imageViewer: T3NativeImageViewer?
+  private var environmentSignIn: T3EnvironmentSignIn?
   /// The last file preview that closed. Written on main, read synchronously from JS.
   private let filePreviewActivity = NSLock()
   private var finishedFilePreview: String?
@@ -117,7 +118,27 @@ public final class T3NativeControlsModule: Module {
       if self.imageViewer?.identifier == identifier { self.imageViewer?.update(index: index, url: url) }
     }.runOnQueue(.main)
 
+    // Resolves "ready" once the environment reports a session, or "cancelled" when the sheet closes.
+    AsyncFunction("signInToEnvironment") { (origin: URL, promise: Promise) in
+      if let pending = self.environmentSignIn {
+        guard T3EnvironmentSignIn.sameOrigin(pending.origin, origin) else {
+          throw URLError(.cannotLoadFromNetwork)
+        }
+        pending.join(promise)
+        return
+      }
+      guard let presenter = self.appContext?.utilities?.currentViewController() else {
+        throw URLError(.cannotLoadFromNetwork)
+      }
+      let signIn = T3EnvironmentSignIn(origin: origin) { [weak self] in self?.environmentSignIn = nil }
+      signIn.join(promise)
+      self.environmentSignIn = signIn
+      signIn.start(from: presenter)
+    }.runOnQueue(.main)
+
     OnDestroy {
+      let signIn = self.environmentSignIn
+      DispatchQueue.main.async { signIn?.dismiss() }
       let presentation = self.videoPresentation
       let file = self.filePresentation
       let images = self.imageViewer

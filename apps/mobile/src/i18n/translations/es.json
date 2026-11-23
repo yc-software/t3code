@@ -5620,5 +5620,13 @@
   "0b1e4aecbd38e0cf": "Cuando la app se conecta a un ordenador mediante {product}, envía al equipo de T3 Code cuánto tardó cada paso, el tipo de error, un ID de esta sesión de la app y la versión de la app. Las trazas nunca incluyen tus hilos, prompts ni código.",
   "e0856d6a402ad821": "La política de {organization} no permite comandos de diseño de worktrees de proyectos.",
   "4357fd98704699df": "La dirección del entorno no es válida.",
-  "a40e0fcc294eed26": "Se canceló el inicio de sesión en {host}."
+  "a40e0fcc294eed26": "Se canceló el inicio de sesión en {host}.",
+  "bfca7b6df2ce46a9": "Vuelve a iniciar sesión en {host}.",
+  "b831531bbe27ae73": "No se pudo conectar con {host}.",
+  "aaf6ded61b89b52d": "Para iniciar sesión a través de un proxy de identidad se necesita la app de iOS o de escritorio.",
+  "0663160ec02bd73e": "No se pudo abrir la página de inicio de sesión: {cause}",
+  "6730fa8ae68fad99": "No se pudo añadir el backend.",
+  "3078a2a3b948c409": "Iniciar sesión con proxy OIDC",
+  "4da298339fde7575": "Abre la dirección de arriba para que el proxy que la protege inicie tu sesión. No hace falta código.",
+  "0b99239b0a69e6fd": "O inicia sesión a través de un proxy de identidad"
 }

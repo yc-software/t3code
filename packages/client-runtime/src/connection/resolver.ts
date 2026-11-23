@@ -44,7 +44,11 @@ import type {
   RelayConnectionTarget,
   SshConnectionTarget,
 } from "./model.ts";
-import { ConnectionBlockedError, type ConnectionAttemptError } from "./model.ts";
+import {
+  ConnectionBlockedError,
+  ConnectionTransientError,
+  type ConnectionAttemptError,
+} from "./model.ts";
 import * as ConnectionProfileStore from "./profileStore.ts";
 import {
   appendOrchestrationProtocol,
@@ -128,10 +132,54 @@ const makePrimaryBroker = Effect.fn("clientRuntime.connection.broker.makePrimary
   });
 });
 
+const BROWSER_SESSION_TIMEOUT_MS = 10_000;
+
+/**
+ * Asking for the session renews an expired T3 Code cookie while the proxy's sign-in lasts. Once
+ * that ends, the proxy answers with its sign-in page or a refusal instead of JSON.
+ */
+const requireBrowserSession = Effect.fn("clientRuntime.connection.broker.requireBrowserSession")(
+  function* (httpBaseUrl: string) {
+    const signInRequired = new ConnectionBlockedError({
+      reason: "authentication",
+      ...translatableDetail(msg("Sign in to {host} again.", { host: new URL(httpBaseUrl).host })),
+      hop: "server",
+      via: "direct",
+    });
+    const response = yield* HttpClient.get(new URL("/api/auth/session", httpBaseUrl), {
+      acceptJson: true,
+    }).pipe(
+      Effect.timeout(BROWSER_SESSION_TIMEOUT_MS),
+      Effect.mapError(
+        () =>
+          new ConnectionTransientError({
+            reason: "network",
+            ...translatableDetail(
+              msg("Could not reach {host}.", { host: new URL(httpBaseUrl).host }),
+            ),
+            hop: "server",
+            via: "direct",
+          }),
+      ),
+    );
+    if (response.status === 401 || response.status === 403) return yield* signInRequired;
+    const body = yield* response.json.pipe(Effect.orElseSucceed(() => null));
+    if (
+      typeof body !== "object" ||
+      body === null ||
+      !("authenticated" in body) ||
+      body.authenticated !== true
+    ) {
+      return yield* signInRequired;
+    }
+  },
+);
+
 const makeBearerBroker = Effect.fn("clientRuntime.connection.broker.makeBearer")(function* () {
   const credentials = yield* ConnectionCredentialStore.ConnectionCredentialStore;
   const remote = yield* RemoteEnvironmentAuthorization.RemoteEnvironmentAuthorization;
   const presentation = yield* ClientCapabilities.ClientPresentation;
+  const httpClient = yield* HttpClient.HttpClient;
 
   return Effect.fn("clientRuntime.connection.broker.bearer")(function* (
     entry: ConnectionCatalogEntry & { readonly target: BearerConnectionTarget },
@@ -157,6 +205,9 @@ const makeBearerBroker = Effect.fn("clientRuntime.connection.broker.makeBearer")
       });
     }
     if (profile.authorization === "browser-session") {
+      yield* requireBrowserSession(profile.httpBaseUrl).pipe(
+        Effect.provideService(HttpClient.HttpClient, httpClient),
+      );
       return {
         environmentId: target.environmentId,
         label: target.label,

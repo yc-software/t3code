@@ -12866,5 +12866,7 @@
   "25d84a20b0793eb8": "La sesión de inicio de sesión de este entorno terminó.",
   "f932d120942f1c12": "Esperando el inicio de sesión…",
   "cf2370d60586f15f": "Proxy OIDC",
-  "77d884868af81f94": "Inicia sesión a través del proxy de identidad delante del entorno."
+  "77d884868af81f94": "Inicia sesión a través del proxy de identidad delante del entorno.",
+  "bfca7b6df2ce46a9": "Vuelve a iniciar sesión en {host}.",
+  "b831531bbe27ae73": "No se pudo conectar con {host}."
 }

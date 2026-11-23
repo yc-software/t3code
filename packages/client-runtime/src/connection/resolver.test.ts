@@ -14,6 +14,7 @@ import * as ClientCapabilities from "../platform/capabilities.ts";
 import * as RemoteEnvironmentAuthorization from "../authorization/service.ts";
 import {
   BearerConnectionCredential,
+  BearerConnectionProfile,
   type ConnectionCatalogEntry,
   SshConnectionProfile,
   type ConnectionCredential,
@@ -21,6 +22,7 @@ import {
 } from "./catalog.ts";
 import * as ConnectionCredentialStore from "./credentialStore.ts";
 import {
+  BearerConnectionTarget,
   ConnectionTransientError,
   PrimaryConnectionTarget,
   SshConnectionTarget,
@@ -62,6 +64,7 @@ const makeDependencies = Effect.fn("TestConnectionResolver.makeDependencies")((o
   readonly primaryBearerToken?: string;
   readonly prepareSsh?: ClientCapabilities.SshEnvironmentGateway["Service"]["prepare"];
   readonly descriptorProtocolVersion?: number | null | undefined;
+  readonly sessionResponse?: () => Promise<Response>;
 }) => {
   const profiles = new Map(
     (options?.profiles ?? []).map((profile) => [profile.connectionId, profile]),
@@ -131,21 +134,23 @@ const makeDependencies = Effect.fn("TestConnectionResolver.makeDependencies")((o
   });
 
   const layerDependencies = Layer.mergeAll(
-    RpcHttp.layerRemoteHttpClient((() =>
-      Promise.resolve(
-        Response.json({
-          environmentId: ENVIRONMENT_ID,
-          label: "Compatible environment",
-          platform: { os: "linux", arch: "x64" },
-          serverVersion: "0.0.0-test",
-          ...(options?.descriptorProtocolVersion === undefined
-            ? { orchestrationProtocolVersion: ORCHESTRATION_PROTOCOL_VERSION }
-            : options.descriptorProtocolVersion === null
-              ? {}
-              : { orchestrationProtocolVersion: options.descriptorProtocolVersion }),
-          capabilities: { repositoryIdentity: true },
-        }),
-      )) satisfies typeof fetch),
+    RpcHttp.layerRemoteHttpClient(((input: RequestInfo | URL) =>
+      String(input).endsWith("/api/auth/session") && options?.sessionResponse
+        ? options.sessionResponse()
+        : Promise.resolve(
+            Response.json({
+              environmentId: ENVIRONMENT_ID,
+              label: "Compatible environment",
+              platform: { os: "linux", arch: "x64" },
+              serverVersion: "0.0.0-test",
+              ...(options?.descriptorProtocolVersion === undefined
+                ? { orchestrationProtocolVersion: ORCHESTRATION_PROTOCOL_VERSION }
+                : options.descriptorProtocolVersion === null
+                  ? {}
+                  : { orchestrationProtocolVersion: options.descriptorProtocolVersion }),
+              capabilities: { repositoryIdentity: true },
+            }),
+          )) satisfies typeof fetch),
     Layer.succeed(
       ConnectionProfileStore.ConnectionProfileStore,
       options?.profileStore ?? profileStore,
@@ -170,7 +175,73 @@ const makeDependencies = Effect.fn("TestConnectionResolver.makeDependencies")((o
   return Effect.succeed(ConnectionResolver.layer.pipe(Layer.provide(layerDependencies)));
 });
 
+const browserSessionEntry = () =>
+  catalogEntry(
+    new BearerConnectionTarget({
+      environmentId: ENVIRONMENT_ID,
+      label: "Proxied",
+      connectionId: "proxied",
+    }),
+    Option.some(
+      new BearerConnectionProfile({
+        connectionId: "proxied",
+        environmentId: ENVIRONMENT_ID,
+        label: "Proxied",
+        ...ENDPOINT,
+        authorization: "browser-session",
+      }),
+    ),
+  );
+
 describe("ConnectionResolver", () => {
+  it.effect("connects a proxy-signed-in environment while its session holds", () =>
+    Effect.gen(function* () {
+      const layerBroker = yield* makeDependencies({
+        sessionResponse: () => Promise.resolve(Response.json({ authenticated: true })),
+      });
+      const broker = yield* ConnectionResolver.ConnectionResolver.pipe(Effect.provide(layerBroker));
+
+      expect(yield* broker.prepare(browserSessionEntry())).toMatchObject({
+        httpAuthorization: { _tag: "BrowserSession" },
+      });
+    }),
+  );
+
+  it.effect.each([
+    {
+      name: "the proxy redirected to its sign-in page",
+      response: () =>
+        new Response("<html>Sign in</html>", { headers: { "content-type": "text/html" } }),
+    },
+    { name: "the proxy refused the request", response: () => new Response("", { status: 403 }) },
+    { name: "the session ended", response: () => Response.json({ authenticated: false }) },
+  ])("asks to sign in again when $name", ({ response }) =>
+    Effect.gen(function* () {
+      const layerBroker = yield* makeDependencies({
+        sessionResponse: () => Promise.resolve(response()),
+      });
+      const broker = yield* ConnectionResolver.ConnectionResolver.pipe(Effect.provide(layerBroker));
+
+      const error = yield* Effect.flip(broker.prepare(browserSessionEntry()));
+      expect(error).toMatchObject({ _tag: "ConnectionBlockedError", reason: "authentication" });
+      expect(error.message).toBe("Sign in to environment.example.test again.");
+    }),
+  );
+
+  it.effect("keeps retrying a proxy-signed-in environment it cannot reach", () =>
+    Effect.gen(function* () {
+      const layerBroker = yield* makeDependencies({
+        sessionResponse: () => Promise.reject(new TypeError("Network request failed")),
+      });
+      const broker = yield* ConnectionResolver.ConnectionResolver.pipe(Effect.provide(layerBroker));
+
+      expect(yield* Effect.flip(broker.prepare(browserSessionEntry()))).toMatchObject({
+        _tag: "ConnectionTransientError",
+        reason: "network",
+      });
+    }),
+  );
+
   it.effect("blocks an old host during discovery before opening orchestration RPC", () =>
     Effect.gen(function* () {
       const layerBroker = yield* makeDependencies({ descriptorProtocolVersion: null });

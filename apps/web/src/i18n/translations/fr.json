@@ -12871,5 +12871,7 @@
   "25d84a20b0793eb8": "La session de connexion de cet environnement a pris fin.",
   "f932d120942f1c12": "En attente de la connexion…",
   "cf2370d60586f15f": "Proxy OIDC",
-  "77d884868af81f94": "Connectez-vous via le proxy d’identité placé devant l’environnement."
+  "77d884868af81f94": "Connectez-vous via le proxy d’identité placé devant l’environnement.",
+  "bfca7b6df2ce46a9": "Reconnectez-vous à {host}.",
+  "b831531bbe27ae73": "Impossible de joindre {host}."
 }
